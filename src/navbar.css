@@ -1,0 +1,44 @@
+/* -------- navbar.css -------- */
+
+/* 1 ▸ Contenedor principal  ─── fondo vibrante + halo */
+.navbar{
+  display:flex;
+  align-items:center;
+  padding:.75rem 1.25rem;
+  background:#20a2c2;               /* azul intenso (cámbialo si quieres otro) */
+  box-shadow:0 0 8px 2px #66a3ff;   /* borde “iluminado”           */
+  font-family:system-ui,sans-serif;
+}
+
+/* 2 ▸ Logo a la izquierda */
+.navbar__left img{
+  height:58px;                      /* un pelín más alto */
+}
+
+/* 3 ▸ Nombre de la empresa centrado  ── más grande y blanco */
+.navbar__center{
+  flex:1;
+  text-align:center;
+  font-size:2rem;                 /* antes 1.15rem */
+  font-weight:700;
+  letter-spacing:.5px;
+  color:#ffffff;
+}
+
+/* 4 ▸ Enlaces a la derecha  ── botones con mejor contraste */
+.navbar__right a{
+  margin-left:1rem;
+  padding:.45rem .95rem;
+  border:1px solid #ffffff;
+  border-radius:6px;
+  background:rgba(255,255,255,.12); /* blanco translúcido */
+  color:#ffffff;
+  text-decoration:none;
+  font-size:.95rem;
+  transition:all .15s ease;
+}
+
+.navbar__right a:hover{
+  background:#ffffff;
+  color:#0049B7;
+}

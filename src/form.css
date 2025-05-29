@@ -1,0 +1,110 @@
+/* === contenedor general del formulario === */
+.form-wrapper{
+  max-width: 1060px;
+  margin: 2rem auto;
+  padding: 2rem 2.5rem;
+  background:#ffffff;
+  border-radius: 8px;
+  box-shadow: 0 0 14px rgba(0,0,0,.12);
+}
+
+/* layout corto de 3 columnas */
+.row-short{
+  display:grid;
+  grid-template-columns: repeat(auto-fit,minmax(160px,1fr));
+  gap:1rem;
+}
+
+/* alineación piloto */
+.row-center{
+  display:flex;
+  align-items:center;
+  gap:1rem;
+  margin-top:.5rem;
+}
+
+/* inputs compactos de la fila corta */
+.input-short{
+  width:100%;
+  padding:.45rem .6rem;
+  border:1px solid #cbd5e1;
+  border-radius:6px;
+  font-size:.95rem;
+}
+
+/* resto de campos */
+.input, .textarea, .select{
+  width:100%;
+  padding:.55rem .7rem;
+  border:1px solid #cbd5e1;
+  border-radius:6px;
+  font-size:.95rem;
+}
+.textarea{min-height:90px;}
+
+/* secciones dinámicas -------------------------------- */
+.threat-row, .error-row{
+  display:grid;
+  gap:.5rem;
+  margin:.4rem 0;
+}
+/* amenazas = 5 col / errores = 7 col  */
+.threat-row{grid-template-columns: 1fr 120px 120px 140px 1fr;}
+.error-row {grid-template-columns: 1fr 110px 70px 140px 110px 140px 1fr;}
+
+.chk{font-size:.9rem;}
+
+/* títulos */
+.section-title{
+  margin-top:1.8rem;
+  font-size:1.25rem;
+  font-weight:700;
+  font-family:system-ui,sans-serif;
+}
+
+/* tabla desempeño */
+.perf-table{
+  width:100%;
+  border-collapse:collapse;
+  margin-top:.5rem;
+  font-size:.9rem;
+}
+.perf-table th,
+.perf-table td{
+  border:1px solid #e2e8f0;
+  padding:.35rem .4rem;
+  text-align:center;
+}
+.perf-table th:first-child,
+.perf-table td:first-child{
+  text-align:left;
+  font-weight:600;
+}
+.radio{margin:0 .25rem;font-size:.85rem;}
+
+/* botones utilitarios -------------------------------- */
+.btn-outline{
+  margin-top:.4rem;
+  padding:.45rem .9rem;
+  border:1px solid #2563eb;
+  border-radius:6px;
+  background:#fff;
+  color:#2563eb;
+  cursor:pointer;
+}
+.btn-outline:hover{background:#2563eb;color:#fff;}
+
+.btn-primary{
+  padding:.55rem;
+  border:none;
+  border-radius:6px;
+  background:#2563eb;
+  color:#fff;
+  font-weight:600;
+  cursor:pointer;
+}
+.btn-primary:hover{background:#1e4fd1;}
+
+.label-bold{font-size:.95rem;font-weight:600}
+
+/* fin */

@@ -1,0 +1,7 @@
+/* src/index.css */
+
+/* ─── Arranque de Tailwind ─────────────────────── */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
