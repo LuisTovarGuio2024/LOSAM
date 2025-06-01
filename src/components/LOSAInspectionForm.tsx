@@ -1,235 +1,309 @@
-// src/components/LOSAInspectionForm.tsx
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* ---------------------------------------------------------------------------
+   LOSAObservationForm.tsx ― Formulario LOSA-M
+   ▸ Incluye TODAS las preguntas originales ▸ Añade la sección “Detalle observación”
+   ▸ Mantiene estilos con form.css (form-wrapper, form-group, inline-options,…)
+--------------------------------------------------------------------------- */
 import { useState } from "react";
 import { Timestamp, addDoc, collection } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
+import { useForm, Controller } from "react-hook-form";
 import { db, auth } from "../firebase";
+import "../form.css";
 
-/* ---------- tipos ---------- */
-type PF = "Comandante" | "Primer Oficial";
+/* ───────────── 1. PREGUNTAS Y RESPUESTAS (idénticas) ───────────── */
+/* 1.1 Condiciones de observación */
+const ambienteTrabajo = ["Hangar", "Línea", "Otro"] as const;
+const iluminacion = [
+  "Luz natural día",
+  "Amanecer/Anochecer",
+  "Noche",
+  "Nublado",
+  "Luz artificial"
+] as const;
+const ambientales = [
+  "Despejado",
+  "Niebla",
+  "Vientos",
+  "Alta humedad",
+  "Lluvioso",
+  "Calor extremo",
+  "Frío extremo",
+  "Rayos/tormenta eléctrica",
+  "Otro"
+] as const;
 
-type Threat = {
-  descripcion: string;
-  tipo: string;
-  fase: "Despegue" | "Crucero" | "Descenso";
-  vinculaError: boolean;
-  gestion: string;
+/* 1.2 Técnico de mantenimiento */
+const yesNoNA            = ["Sí", "No", "N/A"] as const;
+const experienciaEscala  = ["Ninguno","1 a 6 meses","7 a 12 meses","1 a 3 años","3 a 5 años","5 años o más"] as const;
+const frecuenciaTrabajo  = ["Primera vez","Diaria","Mensual","Trimestral","Semestral","Anual"] as const;
+
+/* 1.3 Trabajo de mantenimiento (10 ítems) */
+const riesgoPreguntas = [
+  "Documentación actualizada (ej., formularios, AMM, boletines de servicio) disponible y revisada",
+  "El personal muestra un comportamiento de trabajo adecuado",
+  "Se logró la comunicación entre el personal técnico",
+  "Se completó la rotación de tareas/turnos",
+  "Firma en formulario del cumplimiento de cada paso realizado",
+  "Aprobación de la inspección por parte de control calidad",
+  "Herramientas / equipos identificados y asignados",
+  "Materiales consumibles (grasas, O-ring, filtros) disponibles y vigentes",
+  "Se recibió apoyo logístico y de supervisión cuando fue necesario",
+  "Personal requerido disponible"
+] as const;
+
+const riesgoEscala = ["Sin Riesgo", "En Riesgo", "No Observado", "N/A"] as const;
+const threatCodes  = [
+  "Mx/A. Información","Mx/A1. No comprensible","Mx/A2. No disponible o inaccesible",
+  "Mx/A3. Incorrecto","Mx/A4. Inadecuado","Mx/A5. Sin control",
+  "Mx/A6. Demasiada información contradictoria","Mx/A7. Proceso de actualización complicado",
+  "Mx/A8. Manual modificado incorrectamente","Mx/A9. Información no utilizada"
+] as const;
+
+/* ───────────── 2. Helpers UI ───────────── */
+const Radios = ({ opts, field }: { opts: readonly string[]; field: any }) => (
+  <>
+    {opts.map((opt) => (
+      <label key={opt} className="inline-flex items-center">
+        <input
+          type="radio"
+          className="radio radio-sm"
+          value={opt}
+          checked={field.value === opt}
+          onChange={() => field.onChange(opt)}
+          name={field.name}
+          ref={field.ref}
+        />
+        <span className="ml-1">{opt}</span>
+      </label>
+    ))}
+  </>
+);
+const Checks = ({ opts, field }: { opts: readonly string[]; field: any }) => {
+  const value: string[] = field.value || [];
+  return (
+    <>
+      {opts.map((opt) => (
+        <label key={opt} className="inline-flex items-center">
+          <input
+            type="checkbox"
+            className="checkbox checkbox-sm"
+            checked={value.includes(opt)}
+            onChange={(e) =>
+              field.onChange(
+                e.target.checked
+                  ? [...value, opt]
+                  : value.filter((v) => v !== opt)
+              )
+            }
+          />
+          <span className="ml-1">{opt}</span>
+        </label>
+      ))}
+    </>
+  );
 };
 
-type ErrorMx = {
-  descripcion: string;
-  fase: "Despegue" | "Crucero" | "Descenso";
-  idAmenaza: number | "";
-  tipo: string;
-  respuesta: "Detectado" | "Sin respuesta";
-  resultado: "Sin consecuencias" | "Estado no deseado" | "Error adicional";
-  gestion: string;
-};
-
-type Rating = 1 | 2 | 3 | 4;
-type PerfMarkers = { briefing: Rating[]; planes: Rating[]; conting: Rating[] };
-
-/* ---------- componente ---------- */
-export default function LOSAInspectionForm() {
+/* ───────────── 3. Componente principal ───────────── */
+export default function LOSAObservationForm() {
   const navigate = useNavigate();
+  const [submitting, setSubmitting] = useState(false);
 
-  /* estado */
-  const [fecha,     setFecha]     = useState("");
-  const [aeronave,  setAeronave]  = useState("");
-  const [ruta,      setRuta]      = useState("");
-  const [pf,        setPf]        = useState<PF>("Comandante");
-
-  const [despegue,  setDespegue]  = useState("");
-  const [crucero,   setCrucero]   = useState("");
-  const [descenso,  setDescenso]  = useState("");
-
-  const [amenazas,  setAmenazas]  = useState<Threat[]>([]);
-  const [errores,   setErrores]   = useState<ErrorMx[]>([]);
-
-  const base: Rating[] = [1, 1, 1];
-  const [rating, setRating] = useState<PerfMarkers>({
-    briefing: [...base],
-    planes:   [...base],
-    conting:  [...base],
+  const { register, control, handleSubmit, formState: { errors } } = useForm<any>({
+    defaultValues: {
+      iluminacion: [], ambientales: [],
+      fecha:"", ubicacion:"", trabajoObs:"", observadoPor: auth.currentUser?.email ?? ""
+    }
   });
 
-  /* helpers */
-  const addAmenaza = () =>
-    setAmenazas([
-      ...amenazas,
-      { descripcion: "", tipo: "100", fase: "Despegue", vinculaError: false, gestion: "" },
-    ]);
-
-  const addError = () =>
-    setErrores([
-      ...errores,
-      {
-        descripcion: "",
-        fase: "Despegue",
-        idAmenaza: "",
-        tipo: "300",
-        respuesta: "Detectado",
-        resultado: "Sin consecuencias",
-        gestion: "",
-      },
-    ]);
-
-  /* guardar */
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!fecha || !aeronave || !ruta) {
-      alert("Completa fecha, aeronave y ruta.");
-      return;
-    }
-
-    await addDoc(collection(db, "observaciones"), {
-      fecha: Timestamp.fromDate(new Date(fecha)),
-      aeronave,
-      ruta,
-      pf,
-      fases:    { despegue, crucero, descenso },
-      amenazas,
-      errores,
-      rating,
-      autor:  auth.currentUser?.email ?? "desconocido",
-      creado: Timestamp.now(),
-    });
-
-    alert("✅ Observación registrada");
-    navigate("/");
+  const onSubmit = async (raw: any) => {
+    try {
+      setSubmitting(true);
+      /* agrupar r1…r10 para quitar puntos */
+      const payload: any = { ...raw };
+      for (let i = 1; i <= 10; i++) {
+        const k = `r${i}`;
+        payload[k] = {
+          answer: raw[k],
+          threatCode: raw[`${k}.threatCode`] ?? "",
+          managed:   raw[`${k}.managed`] ?? "",
+          comment:   raw[`${k}.comment`] ?? ""
+        };
+        delete payload[`${k}.threatCode`];
+        delete payload[`${k}.managed`];
+        delete payload[`${k}.comment`];
+      }
+      await addDoc(collection(db, "observations"), {
+        payload,
+        uid: auth.currentUser?.uid ?? null,
+        observerEmail: auth.currentUser?.email ?? null,
+        createdAt: Timestamp.now()
+      });
+      alert("¡Observación guardada con éxito!");
+      navigate("/inspecciones");
+    } catch (err: any) {
+      console.error(err);
+      alert(`Error: ${err.code}. Revisa la consola para más detalles.`);
+    } finally { setSubmitting(false); }
   };
 
-  /* UI */
+  /* ───────────── Render ───────────── */
   return (
     <div className="form-wrapper">
-      <form onSubmit={handleSave} className="form">
+      <h1>Formulario LOSA-M</h1>
 
-        {/* ── fila corta ── */}
-        <section className="row-short">
-          <input  type="date" value={fecha}  onChange={e=>setFecha(e.target.value)}  className="input-short" />
-          <input  value={aeronave} onChange={e=>setAeronave(e.target.value)} className="input-short" placeholder="Aeronave" />
-          <input  value={ruta}     onChange={e=>setRuta(e.target.value)}     className="input-short" placeholder="Ruta" />
+      <form onSubmit={handleSubmit(onSubmit)}>
+        {/* -------- DETALLE OBSERVACIÓN -------- */}
+        <section>
+          <h2>Detalle observación</h2>
+
+          <div className="form-group">
+            <p>Fecha</p>
+            <input type="date" {...register("fecha",{required:"Requerido"})} className="input input-bordered" />
+            {errors.fecha?.message && <p className="error-msg">{String(errors.fecha.message)}</p>}
+          </div>
+
+          <div className="form-group">
+            <p>Ubicación</p>
+            <input type="text" {...register("ubicacion",{required:"Requerido"})} className="input input-bordered input-half" />
+            {errors.ubicacion?.message && <p className="error-msg">{String(errors.ubicacion.message)}</p>}
+          </div>
+
+          <div className="form-group">
+            <p>Trabajo de mantenimiento observado</p>
+            <input type="text" {...register("trabajoObs",{required:"Requerido"})} className="input input-bordered input-half" />
+            {errors.trabajoObs?.message && <p className="error-msg">{String(errors.trabajoObs.message)}</p>}
+          </div>
+
+          <div className="form-group">
+            <p>Observación realizada por</p>
+            <input type="text" {...register("observadoPor",{required:"Requerido"})} className="input input-bordered input-half" />
+            {errors.observadoPor?.message && <p className="error-msg">{String(errors.observadoPor.message)}</p>}
+          </div>
         </section>
 
-        {/* piloto */}
-        <div className="row-center">
-          <label className="label-bold">Piloto volando:</label>
-          <select value={pf} onChange={e=>setPf(e.target.value as PF)} className="select">
-            <option>Comandante</option>
-            <option>Primer Oficial</option>
-          </select>
-        </div>
+        {/* -------- 1. CONDICIONES -------- */}
+        <section>
+          <h2>Condiciones de observación</h2>
 
-        {/* descripción por fase */}
-        <h2 className="section-title">Descripción por fase</h2>
-        <textarea value={despegue} onChange={e=>setDespegue(e.target.value)} placeholder="Fase Despegue" className="textarea" />
-        <textarea value={crucero}  onChange={e=>setCrucero(e.target.value)}  placeholder="Fase Crucero"  className="textarea" />
-        <textarea value={descenso} onChange={e=>setDescenso(e.target.value)} placeholder="Fase Descenso" className="textarea" />
-
-        {/* amenazas */}
-        <h2 className="section-title">Gestión de Amenazas</h2>
-        {amenazas.map((a,i)=>(
-          <div key={i} className="threat-row">
-            <input  value={a.descripcion} onChange={e=>{const v=[...amenazas];v[i].descripcion=e.target.value;setAmenazas(v);}} placeholder="Descripción"/>
-            <select value={a.tipo} onChange={e=>{const v=[...amenazas];v[i].tipo=e.target.value;setAmenazas(v);}}>
-              <option value="100">100 Meteo</option><option value="101">101 ATC</option>
-              <option value="102">102 Terreno</option><option value="103">103 Aeropuerto</option>
-              <option value="104">104 Tráfico</option>
-            </select>
-            <select value={a.fase} onChange={e=>{const v=[...amenazas];v[i].fase=e.target.value as Threat["fase"];setAmenazas(v);}}>
-              <option>Despegue</option><option>Crucero</option><option>Descenso</option>
-            </select>
-            <label className="chk">
-              <input type="checkbox" checked={a.vinculaError}
-                     onChange={e=>{const v=[...amenazas];v[i].vinculaError=e.target.checked;setAmenazas(v);}}/>
-              &nbsp;Vinculado a error
-            </label>
-            <input  value={a.gestion} onChange={e=>{const v=[...amenazas];v[i].gestion=e.target.value;setAmenazas(v);}}
-                    placeholder="Gestión tripulación" className="wide"/>
+          <div className="form-group">
+            <p>Ambiente de trabajo</p>
+            <Controller name="ambiente" control={control} rules={{required:"Campo obligatorio"}}
+              render={({field})=>(
+                <div className="inline-options"><Radios opts={ambienteTrabajo} field={field}/></div>
+              )}
+            />
+            {errors.ambiente?.message && <p className="error-msg">{String(errors.ambiente.message)}</p>}
           </div>
-        ))}
-        <button type="button" className="btn-outline" onClick={addAmenaza}>+ Añadir amenaza</button>
 
-        {/* errores */}
-        <h2 className="section-title">Gestión de Errores</h2>
-        {errores.map((er,i)=>(
-          <div key={i} className="error-row">
-            <input  className="input w-full" placeholder="Descripción"
-                    value={er.descripcion}
-                    onChange={e=>{const v=[...errores];v[i].descripcion=e.target.value;setErrores(v);}}/>
-            <select className="select" value={er.fase}
-                    onChange={e=>{const v=[...errores];v[i].fase=e.target.value as ErrorMx["fase"];setErrores(v);}}>
-              <option>Despegue</option><option>Crucero</option><option>Descenso</option>
-            </select>
-           
-            <select className="select" value={er.tipo}
-                    onChange={e=>{const v=[...errores];v[i].tipo=e.target.value;setErrores(v);}}>
-              <option value="300">300 Vuelo manual</option><option value="301">301 Controles</option>
-              <option value="302">302 Automatización</option><option value="303">303 Manejo tierra</option>
-              <option value="304">304 Sistemas/Radio</option><option value="399">399 Otros</option>
-            </select>
-            <select className="select" value={er.respuesta}
-                    onChange={e=>{const v=[...errores];v[i].respuesta=e.target.value as ErrorMx["respuesta"];setErrores(v);}}>
-              <option>Detectado</option><option>Sin respuesta</option>
-            </select>
-            <select className="select" value={er.resultado}
-                    onChange={e=>{const v=[...errores];v[i].resultado=e.target.value as ErrorMx["resultado"];setErrores(v);}}>
-              <option>Sin consecuencias</option><option>Estado no deseado</option><option>Error adicional</option>
-            </select>
-            <input className="input w-full" placeholder="Gestión tripulación"
-                   value={er.gestion}
-                   onChange={e=>{const v=[...errores];v[i].gestion=e.target.value;setErrores(v);}}/>
+          <div className="form-group">
+            <p>Condiciones de iluminación</p>
+            <Controller name="iluminacion" control={control}
+              render={({field})=>(
+                <div className="inline-options grid-3"><Checks opts={iluminacion} field={field}/></div>
+              )}
+            />
           </div>
-        ))}
-        <button type="button" className="btn-outline mt-3" onClick={addError}>+ Añadir error</button>
 
-        {/* marcadores */}
-        <h2 className="section-title">Marcadores de Desempeño (1-4)</h2>
-        <PerformanceTable rating={rating} setRating={setRating} />
+          <div className="form-group">
+            <p>Condiciones ambientales</p>
+            <Controller name="ambientales" control={control}
+              render={({field})=>(
+                <div className="inline-options grid-3"><Checks opts={ambientales} field={field}/></div>
+              )}
+            />
+          </div>
+        </section>
 
-        <button type="submit" className="btn-primary w-full mt-6">Guardar observación</button>
+        {/* -------- 2. TÉCNICO -------- */}
+        <section>
+          <h2>Técnico de mantenimiento</h2>
+
+          <div className="form-group">
+            <p>Años de experiencia</p>
+            <input {...register("experienceYears",{required:"Requerido"})} type="number" className="input input-bordered w-40" />
+            {errors.experienceYears?.message && <p className="error-msg">{String(errors.experienceYears.message)}</p>}
+          </div>
+
+          {[
+            {name:"comfortable", label:"¿Se siente cómodo con la tarea?"},
+            {name:"qualified",  label:"¿Está calificado para la tarea?"}
+          ].map(({name,label})=>(
+            <div key={name} className="form-group">
+              <p>{label}</p>
+              <Controller name={name} control={control} rules={{required:"Campo obligatorio"}}
+                render={({field})=>(<div className="inline-options"><Radios opts={yesNoNA} field={field}/></div>)}
+              />
+            </div>
+          ))}
+
+          {[
+            {name:"aircraftExp", label:"Experiencia con el tipo de aeronave"},
+            {name:"taskExp",    label:"Experiencia en esta tarea"}
+          ].map(({name,label})=>(
+            <div key={name} className="form-group">
+              <p>{label}</p>
+              <Controller name={name} control={control} rules={{required:"Campo obligatorio"}}
+                render={({field})=>(<div className="inline-options grid-3"><Radios opts={experienciaEscala} field={field}/></div>)}
+              />
+            </div>
+          ))}
+
+          <div className="form-group">
+            <p>Frecuencia con que realiza esta tarea</p>
+            <Controller name="taskFreq" control={control} rules={{required:"Campo obligatorio"}}
+              render={({field})=>(<div className="inline-options grid-3"><Radios opts={frecuenciaTrabajo} field={field}/></div>)}
+            />
+          </div>
+        </section>
+
+        {/* -------- 3. RIESGOS -------- */}
+        <section>
+          <h2>Observación del trabajo de mantenimiento</h2>
+
+          {riesgoPreguntas.map((label,idx)=>{
+            const key=`r${idx+1}`;
+            return(
+              <div key={key} className="form-group">
+                <p>{idx+1}. {label}</p>
+                <Controller name={key} control={control} rules={{required:"Campo obligatorio"}}
+                  render={({field})=>(
+                    <>
+                      <div className="inline-options"><Radios opts={riesgoEscala} field={field}/></div>
+
+                      {field.value==="En Riesgo" && (
+                        <div className="mt-3 pl-4 border-l">
+                          <p className="font-medium text-sm mb-1">Código de la amenaza:</p>
+                          <Controller name={`${key}.threatCode`} control={control} rules={{required:"Selecciona un código"}}
+                            render={({field:sub})=>(
+                              <div className="inline-options grid-2"><Radios opts={threatCodes} field={sub}/></div>
+                            )}
+                          />
+
+                          <p className="font-medium text-sm mt-2">¿Amenaza gestionada eficazmente?</p>
+                          <Controller name={`${key}.managed`} control={control} rules={{required:"Campo obligatorio"}}
+                            render={({field:sub})=>(<div className="inline-options"><Radios opts={["Sí","No","N/A"]} field={sub}/></div>)}
+                          />
+
+                          <textarea {...register(`${key}.comment`)}
+                            placeholder="Comentarios sobre la amenaza"
+                            className="textarea textarea-bordered w-full mt-2"
+                          />
+                        </div>
+                      )}
+                    </>
+                  )}
+                />
+              </div>
+            );
+          })}
+        </section>
+
+        {/* -------- BOTÓN -------- */}
+        <button type="submit" className="btn-primary" disabled={submitting}>
+          {submitting ? "Guardando…" : "Guardar observación"}
+        </button>
       </form>
     </div>
-  );
-}
-
-/* ---------- tabla de desempeño ---------- */
-function PerformanceTable({
-  rating, setRating,
-}: { rating: PerfMarkers; setRating: (v: PerfMarkers)=>void }) {
-
-  const filas = [
-    { key: "briefing", label: "Planeación" },
-    { key: "planes",   label: "Chequeo Cruzado" },
-    { key: "conting",  label: "Gestión de contingencias" },
-  ] as const;
-
-  const cols = ["Pre-salida", "Despegue/Ascenso", "Descenso/Aterrizaje"];
-
-  const upd = (row: keyof PerfMarkers, col: number, val: Rating) =>
-    setRating({ ...rating, [row]: rating[row].map((n,i)=>(i===col?val:n)) });
-
-  return (
-    <table className="perf-table">
-      <thead><tr><th></th>{cols.map(c=><th key={c}>{c}</th>)}</tr></thead>
-      <tbody>
-        {filas.map(f=>(
-          <tr key={f.key}>
-            <td>{f.label}</td>
-            {rating[f.key].map((v,i)=>(
-              <td key={i}>
-                {[1,2,3,4].map(n=>(
-                  <label key={n} className="radio">
-                    <input type="radio" name={`${f.key}-${i}`}
-                           value={n} checked={v===n}
-                           onChange={()=>upd(f.key,i,n as Rating)}
-                    />{n}
-                  </label>
-                ))}
-              </td>
-            ))}
-          </tr>
-        ))}
-      </tbody>
-    </table>
   );
 }

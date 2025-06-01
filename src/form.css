@@ -1,110 +1,130 @@
-/* === contenedor general del formulario === */
-.form-wrapper{
-  max-width: 1060px;
+/* Paleta sencilla — ajusta a tu gusto */
+:root {
+  --bg: #f1f5f9;            /* gris-azulado muy claro */
+  --card: #ffffff;          /* blanco puro tarjetas   */
+  --primary: #2563eb;       /* azul 600 de Tailwind   */
+  --text: #111827;          /* gris 900              */
+  --muted: #6b7280;         /* gris 500              */
+}
+
+body {
+  background: var(--bg);
+  font-family: system-ui, Segoe UI, Roboto, sans-serif;
+  color: var(--text);
+}
+
+/* -------------- CONTENEDOR GENERAL ---------------- */
+.form-wrapper {
+  max-width: 860px;
   margin: 2rem auto;
-  padding: 2rem 2.5rem;
-  background:#ffffff;
-  border-radius: 8px;
-  box-shadow: 0 0 14px rgba(0,0,0,.12);
+  padding: 2.5rem 2rem;
+  background: var(--card);
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.06);
 }
 
-/* layout corto de 3 columnas */
-.row-short{
-  display:grid;
-  grid-template-columns: repeat(auto-fit,minmax(160px,1fr));
-  gap:1rem;
+/* TITULOS ----------------------------------------- */
+.form-wrapper h1 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin-bottom: 1.2rem;
+}
+.form-wrapper h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 2rem 0 1rem;
+  border-bottom: 2px solid var(--primary);
+  padding-bottom: 0.4rem;
 }
 
-/* alineación piloto */
-.row-center{
-  display:flex;
-  align-items:center;
-  gap:1rem;
-  margin-top:.5rem;
+/* GRUPOS DE PREGUNTA ------------------------------ */
+.form-group {
+  margin-bottom: 1.4rem;
+}
+.form-group p {
+  font-weight: 500;
+  margin-bottom: 0.5rem;
 }
 
-/* inputs compactos de la fila corta */
-.input-short{
-  width:100%;
-  padding:.45rem .6rem;
-  border:1px solid #cbd5e1;
-  border-radius:6px;
-  font-size:.95rem;
+/* INPUTS Y CHECKS --------------------------------- */
+input[type="radio"],
+input[type="checkbox"] {
+  accent-color: var(--primary);
+  margin-right: 0.35rem;
+  inline-size: 1rem;
+  block-size: 1rem;
 }
 
-/* resto de campos */
-.input, .textarea, .select{
-  width:100%;
-  padding:.55rem .7rem;
-  border:1px solid #cbd5e1;
-  border-radius:6px;
-  font-size:.95rem;
-}
-.textarea{min-height:90px;}
-
-/* secciones dinámicas -------------------------------- */
-.threat-row, .error-row{
-  display:grid;
-  gap:.5rem;
-  margin:.4rem 0;
-}
-/* amenazas = 5 col / errores = 7 col  */
-.threat-row{grid-template-columns: 1fr 120px 120px 140px 1fr;}
-.error-row {grid-template-columns: 1fr 110px 70px 140px 110px 140px 1fr;}
-
-.chk{font-size:.9rem;}
-
-/* títulos */
-.section-title{
-  margin-top:1.8rem;
-  font-size:1.25rem;
-  font-weight:700;
-  font-family:system-ui,sans-serif;
+.inline-options label {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 1rem;
+  margin-bottom: 0.4rem;
+  font-size: 0.95rem;
 }
 
-/* tabla desempeño */
-.perf-table{
-  width:100%;
-  border-collapse:collapse;
-  margin-top:.5rem;
-  font-size:.9rem;
+/* TEXTAREA ---------------------------------------- */
+textarea {
+  width: 100%;
+  min-height: 4.5rem;
+  padding: 0.5rem;
+  border: 1px solid #cbd5e1;      /* gris-300 */
+  border-radius: 0.5rem;
+  resize: vertical;
 }
-.perf-table th,
-.perf-table td{
-  border:1px solid #e2e8f0;
-  padding:.35rem .4rem;
-  text-align:center;
-}
-.perf-table th:first-child,
-.perf-table td:first-child{
-  text-align:left;
-  font-weight:600;
-}
-.radio{margin:0 .25rem;font-size:.85rem;}
 
-/* botones utilitarios -------------------------------- */
-.btn-outline{
-  margin-top:.4rem;
-  padding:.45rem .9rem;
-  border:1px solid #2563eb;
-  border-radius:6px;
-  background:#fff;
-  color:#2563eb;
-  cursor:pointer;
+/* BOTÓN ------------------------------------------- */
+.btn-primary {
+  background: var(--primary);
+  color: #fff;
+  padding: 0.6rem 1.4rem;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
 }
-.btn-outline:hover{background:#2563eb;color:#fff;}
-
-.btn-primary{
-  padding:.55rem;
-  border:none;
-  border-radius:6px;
-  background:#2563eb;
-  color:#fff;
-  font-weight:600;
-  cursor:pointer;
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
-.btn-primary:hover{background:#1e4fd1;}
+.btn-primary:not(:disabled):hover {
+  background: #1e40af;            /* azul 800 */
+}
 
-.label-bold{font-size:.95rem;font-weight:600}
+/* MENSAJE DE ERROR ------------------------------- */
+.error-msg {
+  color: #dc2626;                 /* rojo-600 */
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+}
 
-/* fin */
+
+/* -----------------------------------------------------------
+   Layout de las opciones (radios / checks)
+----------------------------------------------------------- */
+.inline-options {
+  display: flex;             /* coloca los labels en línea  */
+  flex-wrap: wrap;           /* permite que salten de línea */
+  gap: 0.75rem 1.5rem;       /*   ↑ vertical |  ←→ horizontal */
+}
+
+/* Opciones largas en grid de 2–3 columnas  ------------------*/
+.inline-options.grid-2  { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+.inline-options.grid-3  { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+.inline-options.grid-2,
+.inline-options.grid-3  { display: grid; column-gap: 1.5rem; row-gap: 0.5rem; }
+
+/* Punto de alineación óptico (radios / checks) --------------*/
+.inline-options label {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.95rem;
+  line-height: 1.2;
+}
+
+.input-half {
+  width: 50%;          /* 50% del contenedor padre */
+  max-width: 400px;    /* opcional: no crece demasiado */
+}
+

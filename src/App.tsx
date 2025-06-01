@@ -6,7 +6,7 @@ import ObservationListPage   from "./pages/ObservationListPage";
 import NewObservation        from "./pages/NewObservation";
 import Dashboard             from "./pages/Dashboard";
 import ProtectedRoute        from "./components/ProtectedRoute";
-import ObservationDetail     from "./pages/ObservationDetail";
+
 
 function AppWrapper() {
   const location = useLocation();
@@ -46,14 +46,7 @@ function AppWrapper() {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/observaciones/:id"
-          element={
-            <ProtectedRoute>
-              <ObservationDetail />
-            </ProtectedRoute>
-          }
-        />
+        
 
         {/* Catch-all → listado */}
         <Route path="*" element={<Navigate to="/" replace />} />
