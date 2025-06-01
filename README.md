@@ -54,3 +54,4 @@ export default tseslint.config({
 ```
 "# losa-demo" 
 "# losa-demo" 
+"# LOSAV1" 
